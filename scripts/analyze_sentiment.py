@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from tqdm import tqdm
+import os 
 
 # Load model and tokenizer
 model_name = "cardiffnlp/twitter-roberta-base-sentiment"
@@ -50,15 +51,18 @@ df["confidence_score"] = confidences
 
 # Save results
 output_path = "data/processed/sentiment.csv"
+
+# Delete file if it exists
+if os.path.isfile(output_path):
+    os.remove(output_path)
+
 df.to_csv(output_path, index=False)
 
 print(f"\nSentiment analysis completed.")
 
+df = pd.read_csv(output_path)
 
-df = pd.read_csv('data/processed/sentiment.csv')
-
-
-# ----Sumary----
+# ----Summary----
 print(f"""
 ----- Summary -----
 File generated: sentiment.csv

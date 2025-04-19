@@ -2,6 +2,7 @@ import yt_dlp
 import pandas as pd
 import langid
 from tqdm import tqdm
+import os 
 
 # Custom logger to silence ffmpeg warnings
 class QuietLogger:
@@ -54,7 +55,7 @@ with yt_dlp.YoutubeDL(full_opts) as ydl:
 
             final_videos.append({
                 'video_id': vid_id,
-                'title': info.get('title'),
+                'video_title': info.get('title'),
                 'views': info.get('view_count'),
                 'year': year,
                 'link': video_url,
@@ -70,17 +71,20 @@ df = pd.DataFrame(final_videos)
 df.sort_values(by=['year', 'views', 'comment_count'], ascending=[True, False, False], inplace=True)
 
 # Detect language
-df['language_detected'] = df['title'].astype(str).apply(lambda x: langid.classify(x)[0])
+df['language_detected'] = df['video_title'].astype(str).apply(lambda x: langid.classify(x)[0])
 
 # Save CSV
 output_path = "data/raw/commercials.csv"
-df.to_csv(output_path, index=False, encoding='utf-8-sig')
 
+# Delete if exists
+if os.path.isfile(output_path):
+    os.remove(output_path)
+
+df.to_csv(output_path, index=False, encoding='utf-8-sig')
 
 print(f"\nCommercial search completed.")
 
-# ----Sumary----
-
+# ----Summary----
 print(f"""
 ----- Summary -----
 File generated: commercials.csv

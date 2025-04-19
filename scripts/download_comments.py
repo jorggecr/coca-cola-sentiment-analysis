@@ -5,58 +5,75 @@ from urllib.parse import urlparse, parse_qs
 from youtube_comment_downloader import YoutubeCommentDownloader
 from tqdm import tqdm
 
-# Load commercials with more than 50 comments
+# Cargar comerciales con más de 50 comentarios
 df = pd.read_csv("data/raw/commercials.csv")
 df = df[df['comment_count'] > 50]
 
 print(f"Starting download of comments...")
-
 print(f"Found {len(df)} commercials with over 50 comments.\n")
-# Initialize the comment downloader
+
+# Inicializar descargador
 downloader = YoutubeCommentDownloader()
 
-# Output path
+# Ruta de salida
 output_file = "data/raw/comments.csv"
-file_exists = os.path.isfile(output_file)
 
-# Open file and write header if needed
-with open(output_file, "a", newline="", encoding="utf-8") as file:
+# Eliminar el archivo si ya existe
+if os.path.isfile(output_file):
+    os.remove(output_file)
+
+# Set para evitar comentarios duplicados
+seen = set()
+
+# Abrir archivo y escribir encabezado
+with open(output_file, "w", newline="", encoding="utf-8") as file:
     writer = csv.writer(file)
-    if not file_exists:
-        writer.writerow(["video_id", "video_title", "author", "text", "likes"])
+    writer.writerow(["video_id", "video_title", "link", "author", "text", "likes"])
 
-    # Iterate over videos with progress bar
     for _, row in tqdm(df.iterrows(), total=df.shape[0], desc="Extracting comments"):
-        title = row["title"]
+        title = row["video_title"]
         video_url = row["link"]
 
-        # Extract video_id
+        # Extraer video_id
         parsed_url = urlparse(video_url)
         video_id = parse_qs(parsed_url.query).get("v", [""])[0]
         if not video_id:
-            continue  # Skip invalid links
+            continue
 
         try:
             comments = downloader.get_comments_from_url(video_url)
 
-            # Write up to 100 comments per video
-            for i, comment in enumerate(comments):
-                if i >= 100:
+            count = 0
+            for comment in comments:
+                if count >= 100:
                     break
+
+                author = comment.get("author", "").strip()
+                text = comment.get("text", "").strip()
+                key = (video_id, author, text)
+
+                if not text or key in seen:
+                    continue
+
+                seen.add(key)
                 writer.writerow([
                     video_id,
                     title,
-                    comment.get("author", "").strip(),
-                    comment.get("text", "").strip(),
+                    video_url,
+                    author,
+                    text,
                     comment.get("votes", 0)
                 ])
-        except Exception:
-            continue  # Silently skip errors to keep it minimal4
+                count += 1
+
+        except Exception as e:
+            print(f"Error in {video_url}: {e}")
+            continue
 
 print(f"\nComments download completed.")
 
-df = pd.read_csv('data/raw/comments.csv')
-# ----Sumary----
+# Resumen
+df = pd.read_csv(output_file)
 print(f"""
 ---- Summary ----
 File generated: comments.csv
